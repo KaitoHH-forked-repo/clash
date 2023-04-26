@@ -16,6 +16,26 @@ import (
 	D "github.com/miekg/dns"
 )
 
+func minimalTTL(records []D.RR) uint32 {
+	ttl := records[0].Header().Ttl
+	for i := range records {
+		if records[i].Header().Ttl < ttl {
+			ttl = records[i].Header().Ttl
+		}
+	}
+	return ttl
+}
+
+func updateTTL(records []D.RR, ttl uint32) {
+	if len(records) == 0 {
+		return
+	}
+	delta := minimalTTL(records) - ttl
+	for i := range records {
+		records[i].Header().Ttl -= delta
+	}
+}
+
 func putMsgToCache(c *cache.LruCache, key string, q D.Question, msg *D.Msg) {
 	// skip dns cache for acme challenge
 	if q.Qtype == D.TypeTXT && strings.HasPrefix(q.Name, "_acme-challenge.") {
@@ -26,11 +46,11 @@ func putMsgToCache(c *cache.LruCache, key string, q D.Question, msg *D.Msg) {
 	var ttl uint32
 	switch {
 	case len(msg.Answer) != 0:
-		ttl = msg.Answer[0].Header().Ttl
+		ttl = minimalTTL(msg.Answer)
 	case len(msg.Ns) != 0:
-		ttl = msg.Ns[0].Header().Ttl
+		ttl = minimalTTL(msg.Ns)
 	case len(msg.Extra) != 0:
-		ttl = msg.Extra[0].Header().Ttl
+		ttl = minimalTTL(msg.Extra)
 	default:
 		log.Debugln("[DNS] response msg empty: %#v", msg)
 		return
@@ -40,17 +60,9 @@ func putMsgToCache(c *cache.LruCache, key string, q D.Question, msg *D.Msg) {
 }
 
 func setMsgTTL(msg *D.Msg, ttl uint32) {
-	for _, answer := range msg.Answer {
-		answer.Header().Ttl = ttl
-	}
-
-	for _, ns := range msg.Ns {
-		ns.Header().Ttl = ttl
-	}
-
-	for _, extra := range msg.Extra {
-		extra.Header().Ttl = ttl
-	}
+	updateTTL(msg.Answer, ttl)
+	updateTTL(msg.Ns, ttl)
+	updateTTL(msg.Extra, ttl)
 }
 
 func isIPRequest(q D.Question) bool {
