@@ -12,18 +12,15 @@ import (
 	"github.com/Dreamacro/clash/common/cache"
 	"github.com/Dreamacro/clash/common/picker"
 	"github.com/Dreamacro/clash/log"
+	"github.com/samber/lo"
 
 	D "github.com/miekg/dns"
 )
 
 func minimalTTL(records []D.RR) uint32 {
-	ttl := records[0].Header().Ttl
-	for i := range records {
-		if records[i].Header().Ttl < ttl {
-			ttl = records[i].Header().Ttl
-		}
-	}
-	return ttl
+	return lo.MinBy(records, func(r1 D.RR, r2 D.RR) bool {
+		return r1.Header().Ttl < r2.Header().Ttl
+	}).Header().Ttl
 }
 
 func updateTTL(records []D.RR, ttl uint32) {
