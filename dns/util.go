@@ -57,6 +57,20 @@ func putMsgToCache(c *cache.LruCache, key string, q D.Question, msg *D.Msg) {
 }
 
 func setMsgTTL(msg *D.Msg, ttl uint32) {
+	for _, answer := range msg.Answer {
+		answer.Header().Ttl = ttl
+	}
+
+	for _, ns := range msg.Ns {
+		ns.Header().Ttl = ttl
+	}
+
+	for _, extra := range msg.Extra {
+		extra.Header().Ttl = ttl
+	}
+}
+
+func updateMsgTTL(msg *D.Msg, ttl uint32) {
 	updateTTL(msg.Answer, ttl)
 	updateTTL(msg.Ns, ttl)
 	updateTTL(msg.Extra, ttl)
