@@ -29,7 +29,7 @@ func updateTTL(records []D.RR, ttl uint32) {
 	}
 	delta := minimalTTL(records) - ttl
 	for i := range records {
-		records[i].Header().Ttl -= delta
+		records[i].Header().Ttl = lo.Clamp(records[i].Header().Ttl-delta, 1, records[i].Header().Ttl)
 	}
 }
 
